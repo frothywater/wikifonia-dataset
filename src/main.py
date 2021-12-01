@@ -7,7 +7,6 @@ from utils import get_dest_midi_path, show_midi, write_list
 
 raw_path = "data/wikifonia"
 output_path = "data/output"
-test_file = "data/wikifonia/BryanWellsRonaldN.Miller-SomedayatChristmas.mxl"
 
 
 def convert_batch(files: list, new_dir: str, debug=False, skip_existing=True):
@@ -33,7 +32,7 @@ def convert_batch(files: list, new_dir: str, debug=False, skip_existing=True):
     return failed_files
 
 
-def main():
+def do_batch():
     files = [os.path.join(raw_path, file) for file in os.listdir(raw_path)]
     os.makedirs(output_path, exist_ok=True)
     failed_files = convert_batch(files, output_path)
@@ -45,8 +44,22 @@ def main():
     write_list(failed_files, "data/failed.txt")
     write_list(list(succeed_set), "data/succeed.txt")
 
-    # convert_batch([test_file], "data", debug=True, skip_existing=False)
-    # show_midi(get_dest_midi_path(test_file, "data"))
+
+def redo_failed():
+    failed_files = [file.replace("\n", "") for file in open("data/failed.txt").readlines()]
+    convert_batch(failed_files, "data/failed_output", debug=False, skip_existing=False)
+
+
+def do_test():
+    test_file = "data/wikifonia/BryanWellsRonaldN.Miller-SomedayatChristmas.mxl"
+    convert_batch([test_file], "data", debug=True, skip_existing=False)
+    show_midi(get_dest_midi_path(test_file, "data"))
+
+
+def main():
+    do_batch()
+    # redo_failed()
+    # do_test()
 
 
 if __name__ == "__main__":
