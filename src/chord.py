@@ -2,6 +2,10 @@ from mido import MetaMessage, MidiFile, MidiTrack
 
 
 def add_chord_markers(file: str, chords: list):
+    """Add chord markers in given MIDI file and chord list.
+    
+    Chords are a list of tuple in form of (name, quarter offset).
+    """
     mid = MidiFile(file)
     track: MidiTrack = mid.tracks[1]
 
