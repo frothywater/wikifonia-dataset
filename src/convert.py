@@ -9,6 +9,13 @@ from chord import add_chord_markers
 
 
 def extract_chords_music21(score: Score, ignore_repeat):
+    """Extract chords from a `music21` score. Return a tuple of (new score without chords, chords).
+
+    Chords are a list of tuple in form of (name, quarter offset).
+    
+    Parameter:
+    - `ignore_repeat`: If true, repeat marks in the score will be not expanded.
+    """
     score_local = deepcopy(score)
 
     if ignore_repeat:
@@ -34,6 +41,11 @@ def extract_chords_music21(score: Score, ignore_repeat):
 
 
 def convert_music21(src_path: str, dest_path: str, ignore_repeat=False):
+    """Convert a `.mxl` file into a `.mid` file.
+    
+    Jobs: (1) extract chords from score; (2) add chord markers into result MIDI file.
+    """
+
     score: Score = parse(src_path, format="musicxml")
     score_flat, chords = extract_chords_music21(score, ignore_repeat)
     score_flat.write("midi", dest_path)

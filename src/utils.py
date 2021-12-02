@@ -5,6 +5,7 @@ from mido import MidiFile
 
 
 def rename(path: str):
+    """Rename `.mxl` files in the given path, cancelling out unwanted characters"""
     allowed_chars = string.ascii_letters + string.digits + ".-_()"
     files = os.listdir(path)
     for file in files:
@@ -25,6 +26,7 @@ def get_dest_midi_path(file: str, new_dir: str):
 
 
 def show_midi(file: str):
+    """Print midi file as `mido` object"""
     mid = MidiFile(file)
     for msg in mid:
         print(msg)
