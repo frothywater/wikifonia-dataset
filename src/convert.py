@@ -4,11 +4,12 @@ from music21.converter import parse
 from music21.duration import GraceDuration
 from music21.expressions import Expression
 from music21.harmony import ChordSymbol
+from music21.key import Key
 from music21.note import Note
 from music21.repeat import RepeatMark
 from music21.stream import Score
 
-from chord import add_chord_markers
+from chord import add_markers
 
 
 def extract_chords_music21(score: Score):
@@ -30,6 +31,13 @@ def extract_chords_music21(score: Score):
         score_local.remove(chord_symbol, recurse=True)
 
     return score_local, chords
+
+
+def extract_keys(score: Score):
+    """Extract keys or key signatures from a `music21` score."""
+
+    score_local = deepcopy(score)
+    return list(score_local.flatten().getElementsByClass(Key))
 
 
 def convert_score(src_path: str, dest_path: str, expand_repeat=False, realize_expression=False):
@@ -63,5 +71,13 @@ def convert_score(src_path: str, dest_path: str, expand_repeat=False, realize_ex
 
     score_flat, chords = extract_chords_music21(score)
 
+    # Get first key in the score
+    keys = extract_keys(score)
+    if len(keys) == 0:
+        # Assume C Major if the score doesn't have a key
+        key_str = "C"    
+    else:
+        key_str = keys[0].tonicPitchNameWithCase
+
     score_flat.write("midi", dest_path)
-    add_chord_markers(dest_path, chords)
+    add_markers(dest_path, chords, key_str)
