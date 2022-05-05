@@ -36,8 +36,8 @@ def change_flat_notation(s: str):
 def convert_chord(c: str):
     """Convert chord name to an unified representation. Return a tuple of (root_enharm_name, quality)."""
     notes = ["C", "D", "E", "F", "G", "A", "B"]
-    accidentals = ["b", "#", "bb", "x"]
-    accidental_map = {"b": -1, "#": +1, "bb": -2, "x": +2, "": 0}
+    accidentals = ["b", "#", "bb", "x", "##"]
+    accidental_map = {"b": -1, "#": +1, "bb": -2, "x": +2, "##": +2, "": 0}
     name_to_num = {"C": 0, "Db": 1, "D": 2, "Eb": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "Ab": 8, "A": 9, "Bb": 10, "B": 11}
     num_to_name = {num: name for name, num in name_to_num.items()}
 
@@ -119,7 +119,7 @@ def add_markers(file: str, chords: list, key: str = None):
     # Append key marker
     if key is not None:
         key = change_flat_notation(key)
-        key_message = MetaMessage("marker", text=f"Key_{key}")
+        key_message = MetaMessage("marker", text=key)
         messages.append((key_message, 0))
 
     # Append chord markers into the track

@@ -4,8 +4,10 @@ from music21.converter import parse
 from music21.duration import GraceDuration
 from music21.expressions import Expression
 from music21.harmony import ChordSymbol
-from music21.key import Key
+from music21.interval import Interval
+from music21.key import Key, KeySignature
 from music21.note import Note
+from music21.pitch import Pitch
 from music21.repeat import RepeatMark
 from music21.stream import Score
 
@@ -36,8 +38,22 @@ def extract_chords_music21(score: Score):
 def extract_keys(score: Score):
     """Extract keys or key signatures from a `music21` score."""
 
-    score_local = deepcopy(score)
-    return list(score_local.flatten().getElementsByClass(Key))
+    return list(score.flatten().getElementsByClass(Key))
+
+
+def unify_key(score: Score):
+    """Return a new score transposed to C Major or a minor according its beginning key, and its mode."""
+    score_local = deepcopy(score).flatten()
+    keys = list(score_local.getElementsByClass(Key))
+    mode = "major"
+    if len(keys) > 0 and keys[0] is not None:
+        tonic: Pitch = keys[0].tonic
+        mode = keys[0].mode
+        # Calculate pitch shift
+        interval = Interval(tonic, Pitch("C")) if mode != "minor" else Interval(tonic, Pitch("A"))
+        score_local = score_local.transpose(interval)
+
+    return score_local, mode
 
 
 def convert_score(src_path: str, dest_path: str, expand_repeat=False, realize_expression=False):
@@ -69,15 +85,11 @@ def convert_score(src_path: str, dest_path: str, expand_repeat=False, realize_ex
             if isinstance(note.duration, GraceDuration):
                 score.remove(note, recurse=True)
 
-    score_flat, chords = extract_chords_music21(score)
+    # Unify key
+    score_unified, mode = unify_key(score)
+    key_str = "keymode_C_major" if mode != "minor" else "keymode_A_minor"
 
-    # Get first key in the score
-    keys = extract_keys(score)
-    if len(keys) == 0:
-        # Assume C Major if the score doesn't have a key
-        key_str = "C"    
-    else:
-        key_str = keys[0].tonicPitchNameWithCase
+    score_flat, chords = extract_chords_music21(score_unified)
 
     score_flat.write("midi", dest_path)
     add_markers(dest_path, chords, key_str)

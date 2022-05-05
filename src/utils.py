@@ -46,6 +46,8 @@ def convert_job(src_path: str, dest_path: str):
             os.remove(dest_path)
         print(f"Failed to convert {src_path}")
         print(error)
+        # if not str(error).startswith("Degree"):
+        #     raise Exception
 
 
 def convert_batch(files: list, new_dir: str, skip_existing=True):
@@ -58,6 +60,6 @@ def convert_batch(files: list, new_dir: str, skip_existing=True):
             continue
         file_pairs.append((file, dest_path))
 
-    with Pool() as pool:
+    with Pool(processes=32) as pool:
         futures = [pool.apply_async(convert_job, args=pair) for pair in file_pairs] 
         results = [future.get() for future in tqdm(futures)]
