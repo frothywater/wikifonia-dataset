@@ -1,32 +1,5 @@
 from typing import Dict, List
 
-from mido import MetaMessage, MidiFile, MidiTrack
-
-
-def accumulate_time(messages: list):
-    if len(messages) == 0:
-        return
-    current = 0
-    result = []
-    for msg, delta_time in messages:
-        current += delta_time
-        result.append((msg, current))
-    return result
-
-
-def decumulate_time(messages: list):
-    if len(messages) == 0:
-        return
-    result = []
-    for i in range(len(messages)):
-        if i == 0:
-            result.append(messages[0])
-        else:
-            msg, abs_time = messages[i]
-            _, prev_time = messages[i - 1]
-            result.append((msg, abs_time - prev_time))
-    return result
-
 
 def change_flat_notation(s: str):
     """Change flat notation from `-` to `b`"""
@@ -97,48 +70,3 @@ def convert_chord(c: str):
     quality = quality_map[kind]
 
     return root_enharm_name, quality
-
-
-def add_markers(file: str, chords: list, key: str = None):
-    """Add chord markers in given MIDI file, chord list and key notation.
-    
-    Chords are a list of tuple in form of (name, quarter offset).
-    Key notation is tonic pitch name, uppercased if major, lowercased if minor.
-
-    In the resulting MIDI file, there will be two types of markers:
-    1) Key marker at the beginning, with text `Key_{key}`,
-    2) Chord markers, with text `{root}_{quality}`.
-    """
-    mid = MidiFile(file)
-    track: MidiTrack = mid.tracks[1]
-    messages = [(msg, msg.time) for msg in track]
-
-    # Calculate absolute time of each message
-    messages = accumulate_time(messages)
-
-    # Append key marker
-    if key is not None:
-        key = change_flat_notation(key)
-        key_message = MetaMessage("marker", text=key)
-        messages.append((key_message, 0))
-
-    # Append chord markers into the track
-    for name, offset in chords:
-        chord = convert_chord(name)
-        if chord is None:
-            continue
-        root, quality = convert_chord(name)
-        marker_message = MetaMessage("marker", text=f"{root}_{quality}")
-        abs_time = int(offset * mid.ticks_per_beat)
-        messages.append((marker_message, abs_time))
-
-    # Sort all the messages, and decumulate to relative time
-    messages.sort(key=lambda x: x[1])
-    messages = decumulate_time(messages)
-
-    # Clear the track and add the processed messages
-    track.clear()
-    for msg, delta_time in messages:
-        msg.time = delta_time
-        track.append(msg)
-    mid.save(file)

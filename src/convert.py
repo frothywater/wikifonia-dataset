@@ -1,20 +1,18 @@
 from copy import deepcopy
 
+from mido import MetaMessage, MidiFile, MidiTrack
 from music21.converter import parse
 from music21.duration import GraceDuration
 from music21.expressions import Expression
 from music21.harmony import ChordSymbol
-from music21.interval import Interval
-from music21.key import Key, KeySignature
 from music21.note import Note
-from music21.pitch import Pitch
 from music21.repeat import RepeatMark
 from music21.stream import Score
 
-from chord import add_markers
+from chord import convert_chord
 
 
-def extract_chords_music21(score: Score):
+def extract_chords(score: Score):
     """Extract chords from a `music21` score. Return a tuple of (new score without chords, chords).
 
     Chords are a list of tuple in form of (name, quarter offset).
@@ -35,30 +33,9 @@ def extract_chords_music21(score: Score):
     return score_local, chords
 
 
-def extract_keys(score: Score):
-    """Extract keys or key signatures from a `music21` score."""
-
-    return list(score.flatten().getElementsByClass(Key))
-
-
-def unify_key(score: Score):
-    """Return a new score transposed to C Major or a minor according its beginning key, and its mode."""
-    score_local = deepcopy(score).flatten()
-    keys = list(score_local.getElementsByClass(Key))
-    mode = "major"
-    if len(keys) > 0 and keys[0] is not None:
-        tonic: Pitch = keys[0].tonic
-        mode = keys[0].mode
-        # Calculate pitch shift
-        interval = Interval(tonic, Pitch("C")) if mode != "minor" else Interval(tonic, Pitch("A"))
-        score_local = score_local.transpose(interval)
-
-    return score_local, mode
-
-
 def convert_score(src_path: str, dest_path: str, expand_repeat=False, realize_expression=False):
     """Convert a `.mxl` file into a `.mid` file.
-    
+
     Jobs: (1) extract chords from score; (2) add chord markers into result MIDI file.
 
     Parameter:
@@ -85,11 +62,69 @@ def convert_score(src_path: str, dest_path: str, expand_repeat=False, realize_ex
             if isinstance(note.duration, GraceDuration):
                 score.remove(note, recurse=True)
 
-    # Unify key
-    score_unified, mode = unify_key(score)
-    key_str = "keymode_C_major" if mode != "minor" else "keymode_A_minor"
-
-    score_flat, chords = extract_chords_music21(score_unified)
+    score_flat, chords = extract_chords(score)
 
     score_flat.write("midi", dest_path)
-    add_markers(dest_path, chords, key_str)
+    add_markers(dest_path, chords)
+
+
+def add_markers(file: str, chords: list):
+    """Add chord markers in given MIDI file, chord list and key notation.
+
+    Chords are a list of tuple in form of (name, quarter offset).
+
+    In the resulting MIDI file, there will be:
+    1) Chord markers, with text `{root}_{quality}`.
+    """
+    mid = MidiFile(file)
+    track: MidiTrack = mid.tracks[1]
+    messages = [(msg, msg.time) for msg in track]
+
+    # Calculate absolute time of each message
+    messages = accumulate_time(messages)
+
+    # Append chord markers into the track
+    for name, offset in chords:
+        chord = convert_chord(name)
+        if chord is None:
+            continue
+        root, quality = convert_chord(name)
+        marker_message = MetaMessage("marker", text=f"Chord_{root}_{quality}")
+        abs_time = int(offset * mid.ticks_per_beat)
+        messages.append((marker_message, abs_time))
+
+    # Sort all the messages, and decumulate to relative time
+    messages.sort(key=lambda x: x[1])
+    messages = decumulate_time(messages)
+
+    # Clear the track and add the processed messages
+    track.clear()
+    for msg, delta_time in messages:
+        msg.time = delta_time
+        track.append(msg)
+    mid.save(file)
+
+
+def accumulate_time(messages: list):
+    if len(messages) == 0:
+        return
+    current = 0
+    result = []
+    for msg, delta_time in messages:
+        current += delta_time
+        result.append((msg, current))
+    return result
+
+
+def decumulate_time(messages: list):
+    if len(messages) == 0:
+        return
+    result = []
+    for i in range(len(messages)):
+        if i == 0:
+            result.append(messages[0])
+        else:
+            msg, abs_time = messages[i]
+            _, prev_time = messages[i - 1]
+            result.append((msg, abs_time - prev_time))
+    return result

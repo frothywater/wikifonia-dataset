@@ -1,11 +1,7 @@
 import os
 import string
-from multiprocessing import Pool
 
 from mido import MidiFile
-from tqdm import tqdm
-
-from convert import convert_score
 
 
 def rename(path: str):
@@ -36,30 +32,3 @@ def get_midi_messages(file: str):
     for msg in mid:
         result.append(str(msg))
     return result
-
-
-def convert_job(src_path: str, dest_path: str):
-    try:
-        convert_score(src_path, dest_path)
-    except Exception as error:
-        if os.path.exists(dest_path):
-            os.remove(dest_path)
-        print(f"Failed to convert {src_path}")
-        print(error)
-        # if not str(error).startswith("Degree"):
-        #     raise Exception
-
-
-def convert_batch(files: list, new_dir: str, skip_existing=True):
-    """Convert all `.mxl` files in the given list into `.mid` files to new directory"""
-
-    file_pairs = []
-    for file in files:
-        dest_path = get_dest_midi_path(file, new_dir)
-        if skip_existing and os.path.exists(dest_path):
-            continue
-        file_pairs.append((file, dest_path))
-
-    with Pool(processes=32) as pool:
-        futures = [pool.apply_async(convert_job, args=pair) for pair in file_pairs] 
-        results = [future.get() for future in tqdm(futures)]
